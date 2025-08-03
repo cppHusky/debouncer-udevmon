@@ -1,7 +1,8 @@
 CC=gcc
 CFLAGS=-Wall -Wextra
-all:debouncer
-debug:CFLAGS+=-DDEBUG -g
+release:CFLAGS+=-DNDEBUG -O3
+release:debouncer
+debug:CFLAGS+=-g -DDEBUG -O0
 debug:debouncer
 debouncer:debouncer.c
 	$(CC) $(CFLAGS) $^ -o $@
