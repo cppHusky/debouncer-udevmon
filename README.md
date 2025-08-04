@@ -10,7 +10,7 @@ When you use it, you can delay the keyboard "release" event for some time, which
 $ make # for release, or
 $ make debug # for debug
 ```
-When you use the debug version, `./debounce` will create a log file named `keyboard-debouncer.log` in current directory.
+When you use the debug version, `./debounce` will print debug info into `stderr`.
 
 ```bash
 $ sudo udevmon -c udevmon.yaml

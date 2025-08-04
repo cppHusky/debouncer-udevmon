@@ -60,12 +60,6 @@ void *key_release_delay(void *arg){
     return NULL;
 }
 int main(){
-#ifdef DEBUG
-    if(!freopen("./keyboard-debouncer.log","w",stderr)){
-        perror("freopen() failed");
-        return EXIT_FAILURE;
-    }
-#endif
     memset(keystate,0,sizeof(keystate));
     setbuf(stdin,NULL);
     setbuf(stdout,NULL);
@@ -78,13 +72,6 @@ int main(){
         __s8 detached=0;
         for(int i=0;i<events.n;i++){
             if(events.evs[i].type==EV_KEY&&events.evs[1].value==0){
-                dbg("\ttime %ld.%.6ld, type %d, code %d, value %d\n",
-                    events.evs[i].input_event_sec,
-                    events.evs[i].input_event_usec,
-                    events.evs[i].type,
-                    events.evs[i].code,
-                    events.evs[i].value);
-                dbg("\t\x1b[1;34mWaiting for delay...\x1b[0m\n");
                 pthread_mutex_lock(&mutex);
                 keystate[events.evs[i].code]=KEY_STATE_DELAYING;
                 pthread_mutex_unlock(&mutex);
@@ -103,18 +90,30 @@ int main(){
                     pthread_mutex_unlock(&mutex);
                 }
             }else{
+                if(events.evs[i].type==EV_KEY)
+                    keystate[events.evs[i].code]=events.evs[i].value;
+            }
+        }
+        if(!detached){
+            for(int i=0;i<events.n;i++)
                 dbg("time %ld.%.6ld, type %d, code %d, value %d\n",
                     events.evs[i].input_event_sec,
                     events.evs[i].input_event_usec,
                     events.evs[i].type,
                     events.evs[i].code,
                     events.evs[i].value);
-                if(events.evs[i].type==EV_KEY)
-                    keystate[events.evs[i].code]=events.evs[i].value;
-            }
-        }
-        if(!detached)
             fwrite(&events.evs,sizeof(struct input_event)*events.n,1,stdout);
+        }
+        else{
+            dbg("\t\x1b[1;34mBefore delay:\x1b[0m\n");
+            for(int i=0;i<events.n;i++)
+                dbg("\ttime %ld.%.6ld, type %d, code %d, value %d\n",
+                    events.evs[i].input_event_sec,
+                    events.evs[i].input_event_usec,
+                    events.evs[i].type,
+                    events.evs[i].code,
+                    events.evs[i].value);
+        }
         events.n=0;
     }
     return 0;
