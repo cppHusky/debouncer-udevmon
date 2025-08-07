@@ -25,7 +25,13 @@ const SIZEOF_EVENT:usize=std::mem::size_of::<InputEvent>();
 const DEBOUNCE_TIME:std::time::Duration=std::time::Duration::from_millis(12);
 #[tokio::main]
 async fn main(){
-    if let Err(e)=log::set_logger(&LOGGER).map(|_|log::set_max_level(log::LevelFilter::Trace)){
+    if let Err(e)=log::set_logger(&LOGGER).map(|_|log::set_max_level({
+        if cfg!(debug_assertion){
+            log::LevelFilter::Trace
+        }else{
+            log::LevelFilter::Warn
+        }
+    })){
         eprintln!("Failed to initialize logger: {}",e);
     };
     #[allow(unused_mut,unused_variables)]
@@ -42,7 +48,8 @@ async fn main(){
                 *(input.as_ptr() as *const InputEvent)
             };
             events.push(new_event);
-            if new_event.type_!=0||new_event.code!=0||new_event.value!=0{
+            log::trace!("new event comes: {:?}",&new_event);
+            if new_event.type_!=0||new_event.code!=0{
                 continue;
             }
         }
@@ -50,26 +57,32 @@ async fn main(){
             e.type_ as u32==EV_KEY&&e.value==0
         ).collect();
         if release_event.len()>0{
-            let mut cancelled=false;
+            let mut canceled=false;
             let code=release_event[0].code;
             let mut receiver=tx.subscribe();
-            let events=events.clone();
+            let mut events=events.clone();
             tokio::spawn(async move{
-                let start_time=std::time::SystemTime::now();
                 for e in &events{
-                    log::trace!("\x1b[33mdelaying event\x1b[0m: {:?}",e);
+                    log::debug!("\x1b[33mdelaying event\x1b[0m: {:?}",e);
                 }
-                while std::time::SystemTime::now()<=start_time+DEBOUNCE_TIME{
+                let start_time=std::time::SystemTime::now();
+                while std::time::SystemTime::now().duration_since(start_time).unwrap()<DEBOUNCE_TIME{
                     if let Ok(c)=receiver.try_recv(){
                         if c==code{
-                            cancelled=true;
+                            canceled=true;
                             break;
                         }
                     }
                 }
-                if !cancelled{
+                let time=std::time::SystemTime::now().duration_since(std::time::SystemTime::UNIX_EPOCH).unwrap();
+                let (sec,usec)=(time.as_secs(),time.subsec_micros());
+                for e in &mut events{
+                    e.time.tv_sec=sec.try_into().unwrap();
+                    e.time.tv_usec=usec.try_into().unwrap();
+                }
+                if !canceled{
                     for e in &events{
-                        log::trace!("\x1b[32mdelayed event\x1b[0m: {:?}",e);
+                        log::debug!("\x1b[32mdelayed event\x1b[0m: {:?}",e);
                         let ptr=&e.clone() as *const InputEvent as *const u8;
                         let bytes=unsafe{std::slice::from_raw_parts(ptr,SIZEOF_EVENT)};
                         let _=std::io::stdout().write(bytes);
@@ -79,7 +92,7 @@ async fn main(){
             });
         }else{
             for e in &events{
-                log::trace!("\x1b[36mnormal event\x1b[0m: {:?}",e);
+                log::debug!("\x1b[36mnormal event\x1b[0m: {:?}",e);
                 if e.type_ as u32==EV_KEY{
                     tx.send(e.code).unwrap();
                 }

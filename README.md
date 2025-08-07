@@ -7,10 +7,11 @@ When you use it, you can delay the keyboard "release" event for some time, which
 ## Building and Using
 
 ```bash
-$ make # for release, or
-$ make debug # for debug
+$ cargo b # for debug version
+$ cargo b -r # for release version
 ```
-When you use the debug version, `./debounce` will print debug info into `stderr`.
+
+The debug version will output more detailed info to `stderr`.
 
 ```bash
 $ sudo udevmon -c udevmon.yaml
