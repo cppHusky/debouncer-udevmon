@@ -105,7 +105,7 @@ async fn delay_events(
 }
 fn output_event(event:input::InputEvent){
     use std::io::Write;
-    if let Err(e)=std::io::stdout().write(input::InputEvent::unparse(event)){
+    if let Err(e)=std::io::stdout().write(input::InputEvent::unparse(event).as_slice()){
         log::error!("{}",e);
     }
     if let Err(e)=std::io::stdout().flush(){

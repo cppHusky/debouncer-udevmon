@@ -18,10 +18,9 @@ impl InputEvent{
             input.as_ptr() as *const Self
         )}
     }
-    pub fn unparse(event:Self)->&'static [u8]{
-        let u8s=&event as *const Self as *const u8;
+    pub fn unparse(event:Self)->[u8;Self::SIZE]{
         unsafe{
-            std::slice::from_raw_parts(u8s,Self::SIZE)
+            std::mem::transmute::<Self,[u8;Self::SIZE]>(event)
         }
     }
     pub fn r#type(&self)->u16{
