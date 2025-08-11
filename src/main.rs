@@ -1,77 +1,114 @@
 mod input;
 mod utils;
-const DEBOUNCE_TIME:std::time::Duration=std::time::Duration::from_millis(12);
-#[tokio::main]
-async fn main(){
+fn main(){
     utils::LOGGER.init();
     #[allow(unused_variables)]
-    let (tx,rx):(tokio::sync::broadcast::Sender<u16>,tokio::sync::broadcast::Receiver<u16>)=tokio::sync::broadcast::channel(1<<8);
-    let mut events:Vec<input::InputEvent>=Vec::<input::InputEvent>::new();
+    trpl::run(async{
+        let (tx,rx)=trpl::channel::<input::InputEvent>();
+        let tx_future=get_events(tx);
+        let rx_future=process_events(rx);
+        trpl::join(tx_future,rx_future).await;
+    });
+}
+async fn get_events(tx:trpl::Sender<input::InputEvent>){
+    use std::io::Read;
+    log::info!("async block \x1b[4mget_events\x1b[0m started");
     loop{
-        use std::io::{Read,Write};
-        let mut input:[u8;input::SIZEOF_EVENT]=[0;input::SIZEOF_EVENT];
+        let mut input=[0;input::InputEvent::SIZE];
         if let Err(e)=std::io::stdin().read_exact(&mut input){
             log::error!("{}",e);
             std::process::exit(1);
         }else{
-            let new_event=unsafe{
-                *(input.as_ptr() as *const input::InputEvent)
-            };
-            events.push(new_event);
-            log::trace!("new event comes: {:?}",&new_event);
-            if new_event.type_!=0||new_event.code!=0{
-                continue;
+            let event=input::InputEvent::parse(input);
+            log::trace!("new event arrived: {:?}",&event);
+            if let Err(e)=tx.send(event){
+                log::error!("Send the event \x1b[4m{:?}\x1b[0m failed: {}",event,e);
             }
         }
-        let release_event:Vec<&input::InputEvent>=events.as_slice().into_iter().filter(|e|
-            e.type_ as u32==input::EV_KEY&&e.value==0
-        ).collect();
-        if release_event.len()>0{
-            let mut canceled=false;
-            let code=release_event[0].code;
-            let mut receiver=tx.subscribe();
-            let mut events=events.clone();
-            tokio::spawn(async move{
-                for e in &events{
-                    log::debug!("\x1b[33mdelaying event\x1b[0m: {:?}",e);
-                }
-                let start_time=std::time::SystemTime::now();
-                while std::time::SystemTime::now().duration_since(start_time).unwrap()<DEBOUNCE_TIME{
-                    if let Ok(c)=receiver.try_recv(){
-                        if c==code{
-                            canceled=true;
-                            break;
-                        }
+        trpl::yield_now().await
+    }
+}
+async fn process_events(mut rx:trpl::Receiver<input::InputEvent>){
+    log::info!("async block \x1b[4mprocess_events\x1b[0m started");
+    let mut is_release_event_last_time:bool=false;
+    let mut event_cache=Vec::<input::InputEvent>::new();
+    let (mpmc_tx,_mpmc_rx)=tokio::sync::broadcast::channel::<u16>(input::KEY_CNT as usize);
+    while let Some(event)=rx.recv().await{
+        match event.r#type() as u32{
+            input::EV_MSC=>{
+                event_cache.push(event);
+            }
+            input::EV_KEY=>{
+                let keycode=event.code();
+                event_cache.push(event);
+                if event.is_key_release(){
+                    is_release_event_last_time=true;
+                    for e in &event_cache{
+                        log::debug!("\x1b[33mdelaying event\x1b[0m: {:?}",e);
+                    }
+                    let mpmc_rx=mpmc_tx.subscribe();
+                    trpl::spawn_task(delay_events(event_cache.clone(),mpmc_rx,keycode));
+                }else{
+                    is_release_event_last_time=false;
+                    for e in event_cache.clone(){
+                        log::debug!("\x1b[36mnormal event\x1b[0m: {:?}",&e);
+                        output_event(e);
+                    }
+                    if let Err(e)=mpmc_tx.send(keycode){
+                        log::error!("Send the keycode \x1b[4m{}\x1b[0m failed: {}",keycode,e);
                     }
                 }
-                let time=std::time::SystemTime::now().duration_since(std::time::SystemTime::UNIX_EPOCH).unwrap();
-                let (sec,usec)=(time.as_secs(),time.subsec_micros());
-                for e in &mut events{
-                    e.time.tv_sec=sec.try_into().unwrap();
-                    e.time.tv_usec=usec.try_into().unwrap();
+                event_cache.clear();
+            }
+            input::EV_SYN=>{
+                if is_release_event_last_time{
+                    log::debug!("\x1b[37mneglect event\x1b[0m: {:?}",&event);
+                }else{
+                    log::debug!("\x1b[36mnormal event\x1b[0m: {:?}",&event);
+                    output_event(event);
                 }
-                if !canceled{
-                    for e in &events{
-                        log::debug!("\x1b[32mdelayed event\x1b[0m: {:?}",e);
-                        let ptr=&e.clone() as *const input::InputEvent as *const u8;
-                        let bytes=unsafe{std::slice::from_raw_parts(ptr,input::SIZEOF_EVENT)};
-                        let _=std::io::stdout().write(bytes);
-                        let _=std::io::stdout().flush();
-                    }
-                }
-            });
-        }else{
-            for e in &events{
-                log::debug!("\x1b[36mnormal event\x1b[0m: {:?}",e);
-                if e.type_ as u32==input::EV_KEY{
-                    tx.send(e.code).unwrap();
-                }
-                let ptr=&e.clone() as *const input::InputEvent as *const u8;
-                let bytes=unsafe{std::slice::from_raw_parts(ptr,input::SIZEOF_EVENT)};
-                let _=std::io::stdout().write(bytes);
-                let _=std::io::stdout().flush();
+            }
+            _=>{
+                log::debug!("\x1b[36mnormal event\x1b[0m: {:?}",&event);
+                output_event(event);
             }
         }
-        events.clear();
+    }
+}
+async fn delay_events(
+    mut event_cache:Vec<input::InputEvent>,
+    mut mpmc_rx:tokio::sync::broadcast::Receiver<u16>,
+    keycode:u16
+){
+    static DEBOUNCE_TIME:std::time::Duration=std::time::Duration::from_millis(14);
+    log::debug!("\x1b[37mA new thread on keycode {} created and waiting for press event...\x1b[0m",keycode);
+    let waiting=async{
+        while let Ok(recv_keycode)=mpmc_rx.recv().await{
+            if recv_keycode==keycode{
+                break;
+            }
+        }
+    };
+    let timer=async{
+        trpl::sleep(DEBOUNCE_TIME).await;
+    };
+    if let trpl::Either::Right(_)=trpl::race(waiting,timer).await{
+        event_cache.push(input::InputEvent::new());
+        for e in &mut event_cache{
+            e.time_reset();
+        }
+        for e in event_cache{
+            log::debug!("\x1b[34mdelayed event\x1b[0m: {:?}",&e);
+            output_event(e);
+        }
+    }
+}
+fn output_event(event:input::InputEvent){
+    use std::io::Write;
+    if let Err(e)=std::io::stdout().write(input::InputEvent::unparse(event)){
+        log::error!("{}",e);
+    }
+    if let Err(e)=std::io::stdout().flush(){
+        log::error!("{}",e);
     }
 }

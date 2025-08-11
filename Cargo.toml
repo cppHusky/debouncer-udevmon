@@ -1,6 +1,6 @@
 [package]
 name = "debouncer"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2024"
 
 [build-dependencies]
@@ -9,4 +9,4 @@ bindgen = "0.72.0"
 [dependencies]
 log = "0.4.27"
 tokio = { version = "1.47.1", features = ["sync"] }
-tokio-mpmc = "0.2.4"
+trpl = "0.2.0"
