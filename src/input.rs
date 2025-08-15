@@ -38,7 +38,9 @@ impl InputEvent{
         self.time.tv_sec=sec.try_into().unwrap();
         self.time.tv_usec=usec.try_into().unwrap();
     }
-    pub fn is_key_release(&self)->bool{
-        self.r#type() as u32==EV_KEY&&self.value()==0
+    pub fn should_delay(&self,exceptions:&Vec<u16>)->bool{
+        self.r#type() as u32==EV_KEY
+            &&self.value()==0
+            &&!exceptions.contains(&self.code())
     }
 }

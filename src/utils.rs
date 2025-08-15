@@ -28,3 +28,63 @@ impl Logger{
         };
     }
 }
+#[derive(Debug,PartialEq,Eq,PartialOrd,Ord,serde::Deserialize)]
+pub struct Config{
+    pub exceptions:Vec<u16>,
+}
+impl Config{
+    pub fn new()->Self{
+        Config{
+            exceptions:vec![],
+        }
+    }
+    pub fn init()->Self{
+        let builder=config::Config::builder();
+        let builder=match builder.set_default("exceptions",Vec::<u16>::new()){
+            Ok(b)=>b,
+            Err(e)=>{
+                log::error!("Failed to set default config: {}",e);
+                return Self::new();
+            }
+        };
+        let builder=builder.add_source(config::File::with_name("/etc/debouncer.toml"));
+        let config=match builder.build(){
+            Ok(c)=>c,
+            Err(e)=>{
+                log::warn!("Failed to build config: {}",e);
+                return Self::new();
+            }
+        };
+        match config.try_deserialize::<Config>(){
+            Ok(c)=>c,
+            Err(e)=>{
+                log::error!("Failed to parse config file: {}",e);
+                return Self::new();
+            }
+        }
+    }
+}
+pub static CONFIG:std::sync::OnceLock<Config>=std::sync::OnceLock::new();
+#[cfg(test)]
+mod test{
+    use super::*;
+    #[test]
+    fn default_config(){
+        let config=config::Config::builder()
+            .set_default("exceptions",Vec::<u16>::new())
+            .unwrap()
+            .build()
+            .unwrap()
+            .try_deserialize::<Config>()
+            .unwrap();
+        assert_eq!(config,Config::new());
+    }
+    #[test]
+    #[should_panic]
+    fn config_not_found(){
+        let _=config::Config::builder()
+            .add_source(config::File::with_name("./debouncer.toml"))
+            .build()
+            .unwrap();
+    }
+}

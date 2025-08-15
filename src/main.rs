@@ -2,6 +2,7 @@ mod input;
 mod utils;
 fn main(){
     utils::LOGGER.init();
+    utils::CONFIG.set(utils::Config::init()).unwrap();
     #[allow(unused_variables)]
     trpl::run(async{
         let (tx,rx)=trpl::channel::<input::InputEvent>();
@@ -41,7 +42,7 @@ async fn process_events(mut rx:trpl::Receiver<input::InputEvent>){
             input::EV_KEY=>{
                 let keycode=event.code();
                 event_cache.push(event);
-                if event.is_key_release(){
+                if event.should_delay(&utils::CONFIG.get().unwrap().exceptions){
                     is_release_event_last_time=true;
                     for e in &event_cache{
                         log::debug!("\x1b[33mdelaying event\x1b[0m: {:?}",e);

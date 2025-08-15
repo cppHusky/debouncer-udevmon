@@ -106,3 +106,12 @@ After=udevmon.service
 [Service]
 ExecStartPre=/usr/bin/sleep .7 # 700ms is fine on my machine
 ```
+
+## Configurations
+
+You can set some configurations in `/etc/debouncer.toml`. Currently supported items are:
+
+- **`exceptions`: array of `u16` keycodes**. Keys in the exceptions will not delayed. For example, I want to neglect modifier keys such as Ctrl, Alt, Shift and Meta. Here is my config:
+```toml
+exceptions=[29,42,54,56,97,100,125]
+```

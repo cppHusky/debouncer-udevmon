@@ -1,12 +1,14 @@
 [package]
 name = "debouncer"
-version = "0.2.0"
+version = "0.2.1"
 edition = "2024"
 
 [build-dependencies]
 bindgen = "0.72.0"
 
 [dependencies]
+config = { version = "0.15.14", features = ["toml"] }
 log = "0.4.27"
+serde = { version = "1.0.219", features = ["derive"] }
 tokio = { version = "1.47.1", features = ["sync"] }
 trpl = "0.2.0"
