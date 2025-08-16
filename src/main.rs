@@ -42,7 +42,7 @@ async fn process_events(mut rx:trpl::Receiver<input::InputEvent>){
             input::EV_KEY=>{
                 let keycode=event.code();
                 event_cache.push(event);
-                if event.should_delay(&utils::CONFIG.get().unwrap().exceptions){
+                if event.should_delay(config!(exceptions)){
                     is_release_event_last_time=true;
                     for e in &event_cache{
                         log::debug!("\x1b[33mdelaying event\x1b[0m: {:?}",e);

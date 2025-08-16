@@ -88,3 +88,9 @@ mod test{
             .unwrap();
     }
 }
+#[macro_export]
+macro_rules! config{
+    (exceptions)=>{
+        &$crate::utils::CONFIG.get().unwrap().exceptions
+    }
+}
