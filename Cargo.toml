@@ -2,6 +2,10 @@
 name = "debouncer"
 version = "0.2.1"
 edition = "2024"
+license-file = "LICENSE"
+description = "debouncer with udevmon"
+repository = "https://github.com/cppHusky/debouncer-udevmon"
+readme = "README.md"
 
 [build-dependencies]
 bindgen = "0.72.0"
