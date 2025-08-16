@@ -300,7 +300,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "debouncer"
+name = "debouncer-udevmon"
 version = "0.2.1"
 dependencies = [
  "bindgen",
