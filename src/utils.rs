@@ -82,6 +82,8 @@ mod test{
         let config=config::Config::builder()
             .set_default("exceptions",Vec::<u16>::new())
             .unwrap()
+            .set_default("debounce_time",14u64)
+            .unwrap()
             .build()
             .unwrap()
             .try_deserialize::<Config>()
