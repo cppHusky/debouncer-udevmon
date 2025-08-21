@@ -3,7 +3,7 @@ mod utils;
 fn main(){
     utils::LOGGER.init();
     utils::CONFIG.set(utils::Config::init()).unwrap();
-    #[allow(unused_variables)]
+    log::info!("Loaded config: {:?}",&utils::CONFIG);
     trpl::run(async{
         let (tx,rx)=trpl::channel::<input::InputEvent>();
         let tx_future=get_events(tx);
@@ -81,7 +81,7 @@ async fn delay_events(
     mut mpmc_rx:tokio::sync::broadcast::Receiver<u16>,
     keycode:u16
 ){
-    static DEBOUNCE_TIME:std::time::Duration=std::time::Duration::from_millis(14);
+    let debounce_time:std::time::Duration=std::time::Duration::from_millis(config!(debounce_time));
     log::debug!("\x1b[37mA new thread on keycode {} created and waiting for press event...\x1b[0m",keycode);
     let waiting=async{
         while let Ok(recv_keycode)=mpmc_rx.recv().await{
@@ -91,7 +91,7 @@ async fn delay_events(
         }
     };
     let timer=async{
-        trpl::sleep(DEBOUNCE_TIME).await;
+        trpl::sleep(debounce_time).await;
     };
     if let trpl::Either::Right(_)=trpl::race(waiting,timer).await{
         event_cache.push(input::InputEvent::new());

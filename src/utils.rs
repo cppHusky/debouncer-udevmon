@@ -31,16 +31,25 @@ impl Logger{
 #[derive(Debug,PartialEq,Eq,PartialOrd,Ord,serde::Deserialize)]
 pub struct Config{
     pub exceptions:Vec<u16>,
+    pub debounce_time:u64,
 }
 impl Config{
     pub fn new()->Self{
         Config{
             exceptions:vec![],
+            debounce_time:14,
         }
     }
     pub fn init()->Self{
         let builder=config::Config::builder();
         let builder=match builder.set_default("exceptions",Vec::<u16>::new()){
+            Ok(b)=>b,
+            Err(e)=>{
+                log::error!("Failed to set default config: {}",e);
+                return Self::new();
+            }
+        };
+        let builder=match builder.set_default("debounce_time",14){
             Ok(b)=>b,
             Err(e)=>{
                 log::error!("Failed to set default config: {}",e);
@@ -92,5 +101,8 @@ mod test{
 macro_rules! config{
     (exceptions)=>{
         &$crate::utils::CONFIG.get().unwrap().exceptions
-    }
+    };
+    (debounce_time)=>{
+        $crate::utils::CONFIG.get().unwrap().debounce_time
+    };
 }

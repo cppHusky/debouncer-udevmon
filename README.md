@@ -32,7 +32,7 @@ See [input.h](https://github.com/torvalds/linux/blob/master/include/uapi/linux/i
 
 A key event has 3 possible values: 1 (pressed), 0 (released) or 2 (autorepeat).
 
-The role of `debouncer` is that, it can delay the keyboard "release" event for some time (+12ms is ideal for my machine), which is similar to the ["spuious" mode of libinput](https://wayland.freedesktop.org/libinput/doc/latest/button-debouncing.html).
+The role of `debouncer` is that, it can delay the keyboard "release" event for some time (see #Configurations), which is similar to the ["spuious" mode of libinput](https://wayland.freedesktop.org/libinput/doc/latest/button-debouncing.html).
 
 Once `debouncer` received a "release" event, it will wait for some time. During this time, if no "press" event of the same key comes, it will write the "release" event to `stdout`; otherwise, it will neglect this event.
 
@@ -109,9 +109,14 @@ ExecStartPre=/usr/bin/sleep .7 # 700ms is fine on my machine
 
 ## Configurations
 
-You can set some configurations in `/etc/debouncer.toml`. Currently supported items are:
+You can set some configurations in `/etc/debouncer.toml`. Here is my configurations:
 
-- **`exceptions`: array of `u16` keycodes**. Keys in the exceptions will not delayed. For example, I want to neglect modifier keys such as Ctrl, Alt, Shift and Meta. Here is my config:
 ```toml
 exceptions=[29,42,54,56,97,100,125]
+debounce_time=14
 ```
+
+Currently supported items are:
+
+- **`exceptions`: array of `u16` keycodes**. Keys in the exceptions will not delayed. For example, I want to neglect modifier keys such as Ctrl, Alt, Shift and Meta.
+- **`debounce_time`: `u64` value in milliseconds**. Indicates how long should a release event delayed. For example, 14ms is ideal for my machine.
