@@ -41,36 +41,18 @@ impl Config{
         }
     }
     pub fn init()->Self{
-        let builder=config::Config::builder();
-        let builder=match builder.set_default("exceptions",Vec::<u16>::new()){
-            Ok(b)=>b,
-            Err(e)=>{
-                log::error!("Failed to set default config: {}",e);
-                return Self::new();
-            }
-        };
-        let builder=match builder.set_default("debounce_time",14){
-            Ok(b)=>b,
-            Err(e)=>{
-                log::error!("Failed to set default config: {}",e);
-                return Self::new();
-            }
-        };
-        let builder=builder.add_source(config::File::with_name("/etc/debouncer.toml"));
-        let config=match builder.build(){
-            Ok(c)=>c,
-            Err(e)=>{
-                log::warn!("Failed to build config: {}",e);
-                return Self::new();
-            }
-        };
-        match config.try_deserialize::<Config>(){
-            Ok(c)=>c,
-            Err(e)=>{
-                log::error!("Failed to parse config file: {}",e);
-                return Self::new();
-            }
-        }
+        Self::init_impl().unwrap_or_else(|e|{
+            log::error!("Failed to init Config: {}",e);
+            Self::new()
+        })
+    }
+    fn init_impl()->Result<Self,config::ConfigError>{
+        let config=config::Config::builder()
+            .set_default("exceptions",Vec::<u16>::new())?
+            .set_default("debounce_time",14)?
+            .add_source(config::File::with_name("/etc/debouncer.toml"))
+            .build()?;
+        config.try_deserialize::<Config>()
     }
 }
 pub static CONFIG:std::sync::OnceLock<Config>=std::sync::OnceLock::new();
