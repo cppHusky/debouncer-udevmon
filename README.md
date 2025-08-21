@@ -14,14 +14,14 @@ This middleware is flexible, loosely coupled and easy-to-use. After bringing it 
 
 ### Overview
 
-The `intercept`, `debouncer` and `uinput` form a whole virtual device. The data flow is in this middleware is shown as follows:
+The `intercept`, `debouncer-udevmon` and `uinput` form a whole virtual device. The data flow is in this middleware is shown as follows:
 
 ```
-(keyboard device) -> intercept -> debouncer -> uinput -> (next layer)
+(keyboard device) -> intercept -> debouncer-udevmon -> uinput -> (next layer)
 ```
 
 + `intercept` captures your input from previous layer, and write raw input to `stdout`;
-+ `debouncer` get the raw input data from `stdin`, process them and write back to `stdout`;
++ `debouncer-udevmon` get the raw input data from `stdin`, process them and write back to `stdout`;
 + `uinput` convert the raw input from last step, and write it to this virtual device (can be found as `/dev/input/eventX`);
 
 The "next layer" can be evtest, X server or Wayland compositor.
@@ -32,9 +32,9 @@ See [input.h](https://github.com/torvalds/linux/blob/master/include/uapi/linux/i
 
 A key event has 3 possible values: 1 (pressed), 0 (released) or 2 (autorepeat).
 
-The role of `debouncer` is that, it can delay the keyboard "release" event for some time (see #Configurations), which is similar to the ["spuious" mode of libinput](https://wayland.freedesktop.org/libinput/doc/latest/button-debouncing.html).
+The role of `debouncer-udevmon` is that, it can delay the keyboard "release" event for some time (see #Configurations), which is similar to the ["spuious" mode of libinput](https://wayland.freedesktop.org/libinput/doc/latest/button-debouncing.html).
 
-Once `debouncer` received a "release" event, it will wait for some time. During this time, if no "press" event of the same key comes, it will write the "release" event to `stdout`; otherwise, it will neglect this event.
+Once `debouncer-udevmon` received a "release" event, it will wait for some time. During this time, if no "press" event of the same key comes, it will write the "release" event to `stdout`; otherwise, it will neglect this event.
 
 ## How to use
 
@@ -60,7 +60,7 @@ The debug version will write more detailed info to `stderr`.
 Before using it, you would better create a yaml file as config. For example, here is my `udevmon.yaml`:
 
 ```yaml
-- JOB: intercept -g $DEVNODE | /usr/local/bin/debouncer | uinput -d $DEVNODE
+- JOB: intercept -g $DEVNODE | /usr/local/bin/debouncer-udevmon | uinput -d $DEVNODE
   DEVICE:
     LINK: "/dev/input/by-path/platform-i8042-serio-0-event-kbd"
 ```
@@ -89,10 +89,10 @@ $ sudo systemctl enable udevmon.service --now
 
 This debouncer is easy to integrated with keyd, because they are both modularized middleware layer in libevdev.
 
-Just run `debouncer` first and `keyd` then, you will get a debounced and remapped keyboard! the data flow from keyboard to applications is:
+Just run `debouncer-udevmon` first and `keyd` then, you will get a debounced and remapped keyboard! the data flow from keyboard to applications is:
 
 ```
-(keyboard device) -> debouncer -> keyd -> (next layer)
+(keyboard device) -> debouncer-udevmon -> keyd -> (next layer)
 ```
 
 You can also integrate `udevmon.service` and `keyd.service`. But notice that **the order and time of services matter**. `keyd` needs to start after `udevmon` starts, and `udevmon` needs a few microseconds to be ready. So you should [create a drop-in configuration file](https://wiki.archlinux.org/title/Systemd#Drop-in_configuration_files) that wants `udevmon` as optional dependency and sleep for some time before executing the command.
