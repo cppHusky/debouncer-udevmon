@@ -118,5 +118,5 @@ debounce_time=14
 
 Currently supported items are:
 
-- **`exceptions`: array of `u16` keycodes**. Keys in the exceptions will not delayed. For example, I want to neglect modifier keys such as Ctrl, Alt, Shift and Meta.
+- **`exceptions`: array of `u16` [keycodes](https://github.com/torvalds/linux/blob/master/include/uapi/linux/input-event-codes.h#L76)**. Keys in the exceptions will not delayed. For example, I want to neglect modifier keys such as Ctrl, Alt, Shift and Meta.
 - **`debounce_time`: `u64` value in milliseconds**. Indicates how long should a release event delayed. For example, 14ms is ideal for my machine.
