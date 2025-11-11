@@ -32,7 +32,7 @@ See [input.h](https://github.com/torvalds/linux/blob/master/include/uapi/linux/i
 
 A key event has 3 possible values: 1 (pressed), 0 (released) or 2 (autorepeat).
 
-The role of `debouncer-udevmon` is that, it can delay the keyboard "release" event for some time (see #Configurations), which is similar to the ["spuious" mode of libinput](https://wayland.freedesktop.org/libinput/doc/latest/button-debouncing.html).
+The role of `debouncer-udevmon` is that, it can delay the keyboard "release" event for some time (see [Configurations](#configurations)), which is similar to the ["spuious" mode of libinput](https://wayland.freedesktop.org/libinput/doc/latest/button-debouncing.html).
 
 Once `debouncer-udevmon` received a "release" event, it will wait for some time. During this time, if no "press" event of the same key comes, it will write the "release" event to `stdout`; otherwise, it will neglect this event.
 
